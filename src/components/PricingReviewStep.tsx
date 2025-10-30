@@ -305,7 +305,7 @@ export function PricingReviewStep() {
                       Approval level
                     </th>
                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">
-                      Est. Annual Rev.
+                      Annual Contract Value
                     </th>
                   </tr>
                 </thead>
@@ -388,19 +388,9 @@ export function PricingReviewStep() {
         {/* Bottom Summary */}
         <div className="flex items-center justify-between border-t border-gray-200 pt-6">
           <div className="flex items-center gap-12">
+            <div></div>
             <div>
               <div className="text-xs text-gray-600 mb-1">TCV</div>
-              <div className="text-2xl font-bold">
-                $
-                {(calculateGrandTotal() * 2).toLocaleString('en-US', {
-                minimumFractionDigits: 2
-              })}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-gray-600 mb-1">
-                Annual Contracted Revenue
-              </div>
               <div className="text-2xl font-bold">
                 $
                 {(calculateGrandTotal() * 2).toLocaleString('en-US', {
@@ -413,7 +403,16 @@ export function PricingReviewStep() {
             <Link to="/volume" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50">
               Back
             </Link>
-            <button onClick={() => navigate('/quote')} className="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
+            <button onClick={() => {
+            const grandTotal = calculateGrandTotal();
+            const tcv = grandTotal * 2; // TCV is the suggested price (2x cost) - $220,110.00
+            const params = new URLSearchParams();
+            params.set('tcv', tcv.toString());
+            params.set('term', '12');
+            params.set('dealTypes', 'enterprise-transformation');
+            params.set('industry', 'AI & Machine Learning');
+            navigate(`/quote?${params.toString()}`);
+          }} className="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
               Finish
             </button>
           </div>
