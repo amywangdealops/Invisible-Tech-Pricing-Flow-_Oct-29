@@ -524,7 +524,11 @@ export function PricingStep() {
                           ${effectivePrice.toFixed(2)} {product.unit}
                         </td>
                         <td className="p-4">
-                          ${Math.round(total).toLocaleString()}
+                          $
+                          {total.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
                         </td>
                         {viewMode === 'sales' && <td className="p-4">
                             {approvalLevel.level !== 'None' ? <span className={`px-2 py-1 text-xs font-medium rounded-full ${approvalLevel.color === 'red' ? 'bg-red-100 text-red-700' : approvalLevel.color === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -648,7 +652,11 @@ export function PricingStep() {
                                           Annual Total
                                         </span>
                                         <span className="font-medium">
-                                          ${Math.round(total).toLocaleString()}
+                                          $
+                                          {total.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  })}
                                         </span>
                                       </div>
                                     </div>
@@ -666,7 +674,11 @@ export function PricingStep() {
                     Total Contract Value
                   </td>
                   <td className="p-4">
-                    ${Math.round(totalValue).toLocaleString()}
+                    $
+                    {totalValue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
                   </td>
                   {viewMode === 'sales' && <td className="p-4"></td>}
                 </tr>
@@ -680,7 +692,11 @@ export function PricingStep() {
                 Annual Contract Value
               </div>
               <div className="text-xl font-semibold">
-                ${Math.round(totalValue).toLocaleString()}
+                $
+                {totalValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Total contract value
@@ -689,7 +705,12 @@ export function PricingStep() {
             <div className="border border-gray-200 rounded-lg p-4">
               <div className="text-sm text-gray-500 mb-1">Monthly Value</div>
               <div className="text-xl font-semibold">
-                ${Math.round(monthlyValue).toLocaleString()}/mo
+                $
+                {monthlyValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
+                /mo
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 Average monthly billing
@@ -699,7 +720,11 @@ export function PricingStep() {
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="text-sm text-gray-500 mb-1">Total Margin</div>
                   <div className="text-xl font-semibold">
-                    ${Math.round(totalMargin).toLocaleString()}
+                    $
+                    {totalMargin.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                })}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     Revenue minus costs

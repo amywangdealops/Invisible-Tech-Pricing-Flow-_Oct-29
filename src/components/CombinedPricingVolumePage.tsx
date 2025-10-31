@@ -507,7 +507,7 @@ export function CombinedPricingVolumePage() {
                     }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
                           {revenueByProductData.map((entry, index) => <Cell key={`cell-${index}`} fill={`rgb(${70 + index * 30}, ${70 + index * 30}, ${70 + index * 30})`} />)}
                         </Pie>
-                        <Tooltip formatter={value => [`$${Math.round(Number(value)).toLocaleString()}`, 'Revenue']} />
+                        <Tooltip formatter={value => [`$${Number(value).toLocaleString()}`, 'Revenue']} />
                       </RechartsPieChart>
                     </ResponsiveContainer>
                   </div>
@@ -519,7 +519,7 @@ export function CombinedPricingVolumePage() {
                     Annual Contract Value
                   </div>
                   <div className="text-2xl font-semibold">
-                    ${Math.round(annualContractValue).toLocaleString()}
+                    ${annualContractValue.toLocaleString()}
                   </div>
                 </div>
                 <div className="p-4 border border-gray-100 rounded-md bg-gray-50">
@@ -873,7 +873,10 @@ export function CombinedPricingVolumePage() {
                         </td>
                         <td className="p-4">
                           $
-                          {Math.round(discountedPrice * volume).toLocaleString()}
+                          {(discountedPrice * volume).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
                         </td>
                         {viewMode === 'sales' && <td className="p-4">
                             {approvalLevel !== 'None' ? <span className={`px-2 py-1 text-xs font-medium rounded-full ${approvalLevel === 'VP of Sales' ? 'bg-red-100 text-red-700' : approvalLevel === 'Director' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -985,7 +988,11 @@ export function CombinedPricingVolumePage() {
                     Total Annual Contract Value
                   </td>
                   <td className="p-4">
-                    ${Math.round(annualContractValue).toLocaleString()}
+                    $
+                    {annualContractValue.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
                   </td>
                   {viewMode === 'sales' && <td className="p-4"></td>}
                 </tr>
@@ -1009,7 +1016,11 @@ export function CombinedPricingVolumePage() {
             <div>
               <div className="text-sm text-gray-500">Annual Contract Value</div>
               <div className="text-xl font-semibold">
-                ${Math.round(annualContractValue).toLocaleString()}
+                $
+                {annualContractValue.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
               </div>
             </div>
             <div>
@@ -1021,7 +1032,11 @@ export function CombinedPricingVolumePage() {
             <div>
               <div className="text-sm text-gray-500">HappyRobot Margin</div>
               <div className="text-xl font-semibold">
-                ${Math.round(happyRobotMargin).toLocaleString()}
+                $
+                {happyRobotMargin.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              })}
               </div>
             </div>
             <div>

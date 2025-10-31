@@ -221,7 +221,10 @@ export function OpportunityPage() {
                             </div>
                             <div className="text-lg font-semibold">
                               $
-                              {typeof quote.totalValue === 'number' ? quote.totalValue.toLocaleString() : quote.totalValue}
+                              {typeof quote.totalValue === 'number' ? quote.totalValue.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        }) : quote.totalValue}
                             </div>
                           </div>
                           <div>

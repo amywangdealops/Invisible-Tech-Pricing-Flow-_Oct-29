@@ -1,6 +1,9 @@
 import React, { useEffect, useState, createElement } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Check, Info, Building2, ChevronDown, Plus, Search, Package, X, Cpu, Database, Zap, Target, GitBranch, LineChart, Shield, TrendingUp, Activity, Briefcase, Landmark, Building, ShoppingBag, Code, Users, Trophy, Cloud, DollarSign, MessageSquare, Mail, FileText, BarChart3, AlertCircle } from 'lucide-react';
+import { ArrowRight, Check, Info, Building2, ChevronDown, Plus, Search, Package, X, Cpu, Database, Zap, Target, GitBranch, LineChart, Shield, TrendingUp, Activity, Briefcase, Landmark, Building, ShoppingBag, Code, Users, Trophy, Cloud, DollarSign, MessageSquare, Mail, FileText, BarChart3, AlertCircle, GripVertical, Trash2, Archive } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 // Core AI Services for Invisible Tech
 const coreProducts = [{
   id: 'model-orchestration',
@@ -498,6 +501,80 @@ const getIntelligentUseCases = (description: string): any[] => {
   const sortedUseCases = scoredUseCases.sort((a, b) => b.score - a.score);
   return sortedUseCases.slice(0, 6);
 };
+
+// Sortable Milestone Item Component
+interface SortableMilestoneItemProps {
+  milestoneId: string;
+  milestone: any;
+  isSelected: boolean;
+  onToggle: (id: string) => void;
+  onArchive?: (id: string) => void;
+  onDelete?: (id: string) => void;
+}
+
+const SortableMilestoneItem: React.FC<SortableMilestoneItemProps> = ({
+  milestoneId,
+  milestone,
+  isSelected,
+  onToggle,
+  onArchive,
+  onDelete
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: milestoneId });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  };
+  
+  if (!milestone) return null;
+  
+  const MilestoneIcon = milestone.icon;
+  const isCustom = milestone.isCustom || false;
+  
+  return <div ref={setNodeRef} style={style} className="flex items-center gap-2 group">
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded">
+        <GripVertical size={16} className="text-gray-400" />
+      </div>
+      <button onClick={() => onToggle(milestoneId)} className={`flex-1 p-3 rounded-lg text-left transition-colors flex items-center gap-3 ${isSelected ? 'bg-gray-50 border border-black' : 'hover:bg-gray-50 border border-transparent'}`}>
+        <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-black' : 'border-2 border-gray-300'}`}>
+<｜place▁holder▁no▁279｜          {isSelected && <Check size={14} className="text-white" />}
+        </div>
+        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <MilestoneIcon size={18} className="text-gray-600" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium text-sm">{milestone.name}</div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            {milestone.description}
+          </div>
+        </div>
+      </button>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onArchive && <button onClick={(e) => {
+          e.stopPropagation();
+          onArchive(milestoneId);
+        }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Archive milestone">
+          <Archive size={16} />
+        </button>}
+        {onDelete && isCustom && <button onClick={(e) => {
+          e.stopPropagation();
+          onDelete(milestoneId);
+        }} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Delete milestone">
+          <Trash2 size={16} />
+        </button>}
+      </div>
+    </div>;
+};
+
 export function ConfigurationStep() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -508,7 +585,28 @@ export function ConfigurationStep() {
   const [selectedCore, setSelectedCore] = useState<string[]>([]);
   const [selectedUseCase, setSelectedUseCase] = useState<string>('');
   const [selectedDealTypes, setSelectedDealTypes] = useState<string[]>([]);
+  const [selectedDealComponents, setSelectedDealComponents] = useState<string[]>(['expert-network', 'forward-deployed', 'platform-fee']);
   const [selectedMilestones, setSelectedMilestones] = useState<string[]>([]);
+  const [showMilestonesDropdown, setShowMilestonesDropdown] = useState(false);
+  const [customMilestones, setCustomMilestones] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: any;
+    order: number;
+    isCustom: boolean;
+  }>>([]);
+  const [milestoneOrder, setMilestoneOrder] = useState<string[]>(milestones.map(m => m.id));
+  const [archivedMilestones, setArchivedMilestones] = useState<Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: any;
+    isCustom: boolean;
+  }>>([]);
+  const [showCustomMilestoneModal, setShowCustomMilestoneModal] = useState(false);
+  const [customMilestoneName, setCustomMilestoneName] = useState('');
+  const [customMilestoneDescription, setCustomMilestoneDescription] = useState('');
   const [selectedProducts, setSelectedProducts] = useState<Array<{
     id: string;
     pricingMetric: string;
@@ -534,6 +632,21 @@ export function ConfigurationStep() {
     description: 'Comprehensive AI transformation and implementation',
     icon: TrendingUp,
     multiSelect: true
+  }];
+  
+  // Deal component options
+  const dealComponents = [{
+    id: 'expert-network',
+    name: 'Expert Network',
+    description: 'Expert network services'
+  }, {
+    id: 'forward-deployed',
+    name: 'Forward Deployed Engineers',
+    description: 'Forward deployed engineering services'
+  }, {
+    id: 'platform-fee',
+    name: 'Platform Fee',
+    description: 'Platform usage fees'
   }];
   // Restore state from URL params on mount
   useEffect(() => {
@@ -605,6 +718,127 @@ export function ConfigurationStep() {
         setSelectedDealTypes([id]);
       }
     }
+  };
+  
+  const toggleDealComponent = (id: string) => {
+    if (selectedDealComponents.includes(id)) {
+      setSelectedDealComponents(selectedDealComponents.filter(item => item !== id));
+    } else {
+      setSelectedDealComponents([...selectedDealComponents, id]);
+    }
+  };
+  
+  // Get milestone by ID (from default or custom)
+  const getMilestoneById = (id: string) => {
+    const defaultMilestone = milestones.find(m => m.id === id);
+    if (defaultMilestone) return { ...defaultMilestone, isCustom: false };
+    return customMilestones.find(m => m.id === id);
+  };
+  
+  // Get all milestones (default + custom) in display order
+  const getAllMilestones = () => {
+    return milestoneOrder.map(id => getMilestoneById(id)).filter(Boolean);
+  };
+  
+  // Save custom milestone
+  const saveCustomMilestone = () => {
+    if (customMilestoneName.trim()) {
+      const newId = `custom-milestone-${Date.now()}`;
+      const newMilestone = {
+        id: newId,
+        name: customMilestoneName,
+        description: customMilestoneDescription,
+        icon: Target, // Default icon for custom milestones
+        order: milestoneOrder.length + 1,
+        isCustom: true
+      };
+      
+      setCustomMilestones([...customMilestones, newMilestone]);
+      setMilestoneOrder([...milestoneOrder, newId]);
+      setCustomMilestoneName('');
+      setCustomMilestoneDescription('');
+      setShowCustomMilestoneModal(false);
+    }
+  };
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  
+  // Handle drag end for milestone reordering
+  const handleMilestoneDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const oldIndex = milestoneOrder.indexOf(active.id as string);
+      const newIndex = milestoneOrder.indexOf(over.id as string);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setMilestoneOrder(arrayMove(milestoneOrder, oldIndex, newIndex));
+      }
+    }
+  };
+  
+  // Archive milestone
+  const archiveMilestone = (milestoneId: string) => {
+    const milestone = getMilestoneById(milestoneId);
+    if (!milestone) return;
+    
+    // Remove from selected milestones if selected
+    setSelectedMilestones(selectedMilestones.filter(id => id !== milestoneId));
+    
+    // Remove from order
+    setMilestoneOrder(milestoneOrder.filter(id => id !== milestoneId));
+    
+    // If custom, remove from custom milestones
+    if (milestone.isCustom) {
+      setCustomMilestones(customMilestones.filter(m => m.id !== milestoneId));
+    }
+    
+    // Add to archived (without order)
+    const { order, ...milestoneWithoutOrder } = milestone;
+    setArchivedMilestones([...archivedMilestones, milestoneWithoutOrder]);
+  };
+  
+  // Reactivate archived milestone
+  const reactivateMilestone = (milestoneId: string) => {
+    const archived = archivedMilestones.find(m => m.id === milestoneId);
+    if (!archived) return;
+    
+    // Remove from archived
+    setArchivedMilestones(archivedMilestones.filter(m => m.id !== milestoneId));
+    
+    // If custom, add back to custom milestones
+    if (archived.isCustom) {
+      const reactivated = {
+        ...archived,
+        order: milestoneOrder.length + 1
+      };
+      setCustomMilestones([...customMilestones, reactivated]);
+      setMilestoneOrder([...milestoneOrder, milestoneId]);
+    } else {
+      // If default milestone, just add back to order
+      setMilestoneOrder([...milestoneOrder, milestoneId]);
+    }
+  };
+  
+  // Delete milestone (permanently, only for custom milestones)
+  const deleteMilestone = (milestoneId: string) => {
+    const milestone = getMilestoneById(milestoneId);
+    if (!milestone || !milestone.isCustom) return;
+    
+    // Remove from selected milestones if selected
+    setSelectedMilestones(selectedMilestones.filter(id => id !== milestoneId));
+    
+    // Remove from order
+    setMilestoneOrder(milestoneOrder.filter(id => id !== milestoneId));
+    
+    // Remove from custom milestones
+    setCustomMilestones(customMilestones.filter(m => m.id !== milestoneId));
   };
   const toggleMilestone = (id: string) => {
     if (selectedMilestones.includes(id)) {
@@ -755,6 +989,13 @@ export function ConfigurationStep() {
     // Pass all selected products with their pricing metrics
     const productsData = selectedProducts.map(p => `${p.id}:${p.pricingMetric}`).join(',');
     params.set('products', productsData);
+    // Pass selected milestones in their configured order (filter milestoneOrder to only include selected ones)
+    const orderedSelectedMilestones = milestoneOrder.filter(id => selectedMilestones.includes(id));
+    params.set('milestones', orderedSelectedMilestones.join(','));
+    // Store custom milestones in localStorage so VolumeAndPricingStep can access them
+    if (customMilestones.length > 0) {
+      localStorage.setItem('customMilestones', JSON.stringify(customMilestones));
+    }
     // Determine which page to navigate to based on deal type selection
     if (selectedDealTypes.length === 1 && selectedDealTypes[0] === 'data-labeling') {
       // Only data labeling selected -> go to pricing calculator
@@ -933,6 +1174,34 @@ export function ConfigurationStep() {
             })}
               </div>
             </div>}
+          {/* Select Deal Components - Only show after Deal Type is selected */}
+          {selectedDealTypes.length > 0 && <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-medium">Select Deal Components</h2>
+                <div className="text-sm text-gray-500 flex items-center gap-1">
+                  <Info size={14} />
+                  <span>Choose components to include in the deal</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {dealComponents.map(component => {
+              const isSelected = selectedDealComponents.includes(component.id);
+              return <button key={component.id} className={`p-4 border rounded-lg text-left transition-colors ${isSelected ? 'border-black bg-gray-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`} onClick={() => toggleDealComponent(component.id)}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium">{component.name}</div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {component.description}
+                          </div>
+                        </div>
+                        {isSelected && <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+                            <Check size={12} className="text-white" />
+                          </div>}
+                      </div>
+                    </button>;
+            })}
+              </div>
+            </div>}
           {/* Milestones - Show only when Enterprise Transformation is selected */}
           {selectedDealTypes.includes('enterprise-transformation') && <div>
               <div className="flex items-center justify-between mb-3">
@@ -942,35 +1211,75 @@ export function ConfigurationStep() {
                   <span>Select project milestones</span>
                 </div>
               </div>
-              <div className="space-y-3">
-                {milestones.map((milestone, index) => {
-              const MilestoneIcon = milestone.icon;
-              const isSelected = selectedMilestones.includes(milestone.id);
-              return <div key={milestone.id} className="flex gap-3">
-                      <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isSelected ? 'bg-black' : 'bg-gray-200'}`}>
-                          {isSelected ? <Check size={16} className="text-white" /> : <span className="text-sm font-medium text-gray-700">
-                              {milestone.order}
-                            </span>}
-                        </div>
-                        {index < milestones.length - 1 && <div className="w-0.5 h-8 bg-gray-200"></div>}
-                      </div>
-                      <button className={`flex-1 p-3 border rounded-lg text-left transition-colors ${isSelected ? 'border-black bg-gray-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`} onClick={() => toggleMilestone(milestone.id)}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <MilestoneIcon size={18} className="text-gray-600" />
+              <div className="relative">
+                <button onClick={() => setShowMilestonesDropdown(!showMilestonesDropdown)} className="w-full px-4 py-3 border border-gray-300 rounded-lg text-left flex items-center justify-between hover:border-gray-400 transition-colors">
+                  <span className="text-sm">
+                    {selectedMilestones.length === 0 ? 'Select milestones...' : `${selectedMilestones.length} milestone${selectedMilestones.length > 1 ? 's' : ''} selected`}
+                  </span>
+                  <ChevronDown size={20} className={`text-gray-500 transition-transform ${showMilestonesDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                {showMilestonesDropdown && <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowMilestonesDropdown(false)}></div>
+                    <div className="absolute z-20 w-full mt-2 mb-24 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMilestoneDragEnd}>
+                        <SortableContext items={milestoneOrder} strategy={verticalListSortingStrategy}>
+                          <div className="p-2 space-y-1">
+                            {getAllMilestones().map((milestone: any) => {
+                              if (!milestone) return null;
+                              return <SortableMilestoneItem
+                                key={milestone.id}
+                                milestoneId={milestone.id}
+                                milestone={milestone}
+                                isSelected={selectedMilestones.includes(milestone.id)}
+                                onToggle={toggleMilestone}
+                                onArchive={archiveMilestone}
+                                onDelete={deleteMilestone}
+                              />;
+                            })}
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium">{milestone.name}</div>
-                            <div className="text-sm text-gray-500">
-                              {milestone.description}
+                        </SortableContext>
+                      </DndContext>
+                      <div className="p-2 border-t border-gray-200">
+                        <button onClick={() => setShowCustomMilestoneModal(true)} className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-left flex items-center gap-2 hover:border-gray-400 hover:bg-gray-50 transition-colors">
+                          <Plus size={16} className="text-gray-500" />
+                          <span className="text-sm font-medium text-gray-700">Add Custom Milestone</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>}
+              </div>
+              
+              {/* Archived Milestones - Show if there are any archived */}
+              {archivedMilestones.length > 0 && <div className="mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg font-medium text-gray-600">Archived Milestones</h2>
+                    <div className="text-sm text-gray-500 flex items-center gap-1">
+                      <Info size={14} />
+                      <span>Reactivate archived milestones</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {archivedMilestones.map(archived => {
+                      const ArchivedIcon = archived.icon;
+                      return <div key={archived.id} className="p-3 border border-gray-200 rounded-lg flex items-center justify-between hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <ArchivedIcon size={18} className="text-gray-400" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-medium text-sm text-gray-600">{archived.name}</div>
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                {archived.description}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </button>
-                    </div>;
-            })}
-              </div>
+                          <button onClick={() => reactivateMilestone(archived.id)} className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
+                            Reactivate
+                          </button>
+                        </div>;
+                    })}
+                  </div>
+                </div>}
             </div>}
           {/* Selected Products & Pricing Metrics */}
           {selectedProducts.filter(p => !coreProducts.some(cp => cp.id === p.id)).length > 0}
@@ -1047,6 +1356,40 @@ export function ConfigurationStep() {
                 Cancel
               </button>
               <button onClick={saveCustomUseCase} disabled={!customUseCaseName.trim()} className={`px-4 py-2 rounded-md text-sm ${customUseCaseName.trim() ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}>
+                Save
+              </button>
+            </div>
+          </div>
+        </div>}
+      {/* Custom Milestone Modal */}
+      {showCustomMilestoneModal && <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center">
+          <div className="absolute inset-0 bg-black bg-opacity-30" onClick={() => setShowCustomMilestoneModal(false)}></div>
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium">Create Custom Milestone</h2>
+              <button onClick={() => setShowCustomMilestoneModal(false)} className="text-gray-500 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Milestone Name
+                </label>
+                <input type="text" value={customMilestoneName} onChange={e => setCustomMilestoneName(e.target.value)} placeholder="e.g., Pilot Testing, Integration, etc." className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Description
+                </label>
+                <textarea value={customMilestoneDescription} onChange={e => setCustomMilestoneDescription(e.target.value)} placeholder="Brief description of the milestone" rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end gap-2">
+              <button onClick={() => setShowCustomMilestoneModal(false)} className="px-4 py-2 border border-gray-200 rounded-md text-sm">
+                Cancel
+              </button>
+              <button onClick={saveCustomMilestone} disabled={!customMilestoneName.trim()} className={`px-4 py-2 rounded-md text-sm ${customMilestoneName.trim() ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}>
                 Save
               </button>
             </div>

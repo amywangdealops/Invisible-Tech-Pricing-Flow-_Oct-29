@@ -77,7 +77,12 @@ export function OpportunityPage() {
                 <span>Total Pipeline</span>
               </div>
               <div className="text-2xl font-semibold">
-                ${(totalValue / 1000000).toFixed(1)}M
+                $
+                {(totalValue / 1000000).toLocaleString(undefined, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1
+              })}
+                M
               </div>
             </div>
             <div className="p-4 border border-gray-200 rounded-lg">
@@ -86,7 +91,12 @@ export function OpportunityPage() {
                 <span>Weighted Pipeline</span>
               </div>
               <div className="text-2xl font-semibold">
-                ${(weightedValue / 1000000).toFixed(1)}M
+                $
+                {(weightedValue / 1000000).toLocaleString(undefined, {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1
+              })}
+                M
               </div>
             </div>
             <div className="p-4 border border-gray-200 rounded-lg">
@@ -175,7 +185,12 @@ export function OpportunityPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 font-medium">
-                    ${(opp.value / 1000000).toFixed(1)}M
+                    $
+                    {(opp.value / 1000000).toLocaleString(undefined, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1
+                })}
+                    M
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">

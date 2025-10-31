@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, Fragment } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowRight, ChevronDown, ChevronRight, FileText, Download } from 'lucide-react';
 interface CostItem {
   id: string;
@@ -44,6 +44,8 @@ const milestones = [{
 }];
 export function PricingReviewStep() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
   const [costData, setCostData] = useState<Record<string, ResourceSection[]>>({});
   // Add missing state for expanded milestones
   const [expandedMilestones, setExpandedMilestones] = useState<Record<string, boolean>>({});
@@ -152,7 +154,7 @@ export function PricingReviewStep() {
       <div className="border-b border-gray-200 px-8 py-3">
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Link to="/" className="hover:text-gray-900">
-            Intercom
+            Invisible
           </Link>
           <ArrowRight size={12} />
           <Link to="/configure" className="hover:text-gray-900">
@@ -184,48 +186,7 @@ export function PricingReviewStep() {
       {/* Content */}
       <div className="px-8 py-6 max-w-7xl mx-auto">
         {/* Compact Milestone Breakdown */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Milestone Breakdown</h2>
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">
-                    Milestone
-                  </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">
-                    Total Cost
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {milestonesWithData.map(milestone => {
-                const milestoneTotal = calculateMilestoneTotal(milestone.id);
-                return <tr key={milestone.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-sm">{milestone.name}</td>
-                      <td className="px-4 py-2 text-sm font-medium text-right">
-                        $
-                        {milestoneTotal.toLocaleString('en-US', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
-                      </td>
-                    </tr>;
-              })}
-                <tr className="bg-gray-50 font-semibold">
-                  <td className="px-4 py-2 text-sm">Total</td>
-                  <td className="px-4 py-2 text-sm text-right text-blue-600">
-                    $
-                    {calculateGrandTotal().toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                  })}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div className="mb-8"></div>
         {/* Pricing Calculator */}
         <div className="border border-gray-200 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-semibold mb-6">Terms & Pricing</h2>
@@ -286,24 +247,6 @@ export function PricingReviewStep() {
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
                       Milestones
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                      Cost
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                      Suggested price
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                      Discount (%)
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                      Quote price
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                      Gross Margin (%)
-                    </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                      Approval level
-                    </th>
                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">
                       Annual Contract Value
                     </th>
@@ -315,58 +258,64 @@ export function PricingReviewStep() {
                   const suggestedPrice = cost * 2;
                   const discount = discounts[milestone.id] || 0;
                   const quotePrice = calculateQuotePrice(suggestedPrice, discount);
-                  const grossMargin = calculateGrossMargin(cost, quotePrice);
-                  const approval = getApprovalLevel(discount);
-                  return <tr key={milestone.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-sm">{milestone.name}</td>
-                        <td className="px-3 py-2 text-xs">
-                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                  const isExpanded = expandedMilestones[milestone.id];
+                  // Get sections for this milestone
+                  const sections = costData[milestone.id] || [];
+                  return <Fragment key={milestone.id}>
+                        {/* Main Milestone Row */}
+                        <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleMilestone(milestone.id)}>
+                          <td className="px-3 py-2 text-sm">
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                              <span>{milestone.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-sm font-medium text-right">
                             $
-                            {cost.toLocaleString('en-US', {
+                            {quotePrice.toLocaleString('en-US', {
                           minimumFractionDigits: 2
                         })}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-xs">
-                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded">
-                            $
-                            {suggestedPrice.toLocaleString('en-US', {
-                          minimumFractionDigits: 2
-                        })}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex items-center gap-1">
-                            <input type="number" value={discount} onChange={e => updateDiscount(milestone.id, parseFloat(e.target.value) || 0)} min="0" max="100" step="0.1" className="w-12 px-1 py-1 border border-gray-300 rounded text-xs" />
-                            <span className="text-xs">%</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-xs font-medium">
-                          $
-                          {quotePrice.toLocaleString('en-US', {
-                        minimumFractionDigits: 2
-                      })}
-                        </td>
-                        <td className="px-3 py-2 text-xs">
-                          {grossMargin.toFixed(2)}%
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className={`${approval.color} px-2 py-1 rounded text-xs font-medium`}>
-                            {approval.level}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-xs font-medium text-right">
-                          $
-                          {quotePrice.toLocaleString('en-US', {
-                        minimumFractionDigits: 2
-                      })}
-                        </td>
-                      </tr>;
+                          </td>
+                        </tr>
+                        {/* Expanded Section Rows */}
+                        {isExpanded && sections.map(section => {
+                      // Skip platform-fee section if it's being merged with forward-deployed
+                      if (section.id === 'platform-fee' && sections.some(s => s.id === 'forward-deployed')) {
+                        return null;
+                      }
+                      const sectionCost = calculateSectionTotal(milestone.id, section.id);
+                      // For forward-deployed, include platform-fee in calculations
+                      const platformFeeSection = sections.find(s => s.id === 'platform-fee');
+                      const totalSectionCost = section.id === 'forward-deployed' && platformFeeSection ? sectionCost + calculateSectionTotal(milestone.id, 'platform-fee') : sectionCost;
+                      const sectionSuggestedPrice = totalSectionCost * 2;
+                      const sectionQuotePrice = calculateQuotePrice(sectionSuggestedPrice, discount);
+                      // Determine section display name
+                      let sectionName = section.name;
+                      if (section.id === 'expert-network') {
+                        sectionName = 'Expert Network';
+                      } else if (section.id === 'forward-deployed') {
+                        sectionName = 'Product Services';
+                      } else if (section.id === 'platform-fee') {
+                        sectionName = 'Platform Fee';
+                      }
+                      return <tr key={`${milestone.id}-${section.id}`} className="bg-gray-50">
+                                <td className="px-3 py-2 text-xs pl-10">
+                                  <span className="text-gray-600">
+                                    ↳ {sectionName}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-xs text-right">
+                                  $
+                                  {sectionQuotePrice.toLocaleString('en-US', {
+                            minimumFractionDigits: 2
+                          })}
+                                </td>
+                              </tr>;
+                    })}
+                      </Fragment>;
                 })}
                   <tr className="bg-gray-50 font-semibold">
-                    <td colSpan={7} className="px-3 py-2 text-sm text-right">
-                      Total
-                    </td>
+                    <td className="px-3 py-2 text-sm text-right">Total</td>
                     <td className="px-3 py-2 text-sm text-right">
                       $
                       {milestonesWithData.reduce((sum, milestone) => {
@@ -410,7 +359,13 @@ export function PricingReviewStep() {
             params.set('tcv', tcv.toString());
             params.set('term', '12');
             params.set('dealTypes', 'enterprise-transformation');
-            params.set('industry', 'AI & Machine Learning');
+            // Use actual industry and use case from URL parameters
+            const industry = queryParams.get('type') || queryParams.get('industry') || 'AI & Machine Learning';
+            const useCase = queryParams.get('useCase') || '';
+            params.set('industry', industry);
+            if (useCase) {
+              params.set('useCase', useCase);
+            }
             navigate(`/quote?${params.toString()}`);
           }} className="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
               Finish

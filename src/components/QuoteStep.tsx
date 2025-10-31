@@ -11,8 +11,85 @@ export function QuoteStep() {
   const hasDataLabeling = dealTypes.includes('data-labeling');
   const hasEnterpriseTransformation = dealTypes.includes('enterprise-transformation');
   // Get industry/use case label from URL parameters
-  const industryLabel = queryParams.get('type') || queryParams.get('industry') || 'AI & Machine Learning';
-  const useCaseLabel = queryParams.get('useCase') || '';
+  const industryId = queryParams.get('type') || queryParams.get('industry') || 'ai-training';
+  const useCaseId = queryParams.get('useCase') || '';
+
+  // Convert industry ID to display name
+  const industryDisplayNames: Record<string, string> = {
+    'ai-training': 'AI & Machine Learning',
+    'finance': 'Financial Services',
+    'healthcare': 'Healthcare',
+    'insurance': 'Insurance',
+    'retail': 'Retail & E-commerce',
+    'technology': 'Technology',
+    'public-sector': 'Public Sector',
+    'sports': 'Sports & Entertainment',
+    'model-provider': 'AI Model Provider',
+    'custom': 'Custom Industry'
+  };
+  const industryLabel = industryDisplayNames[industryId] || industryId;
+
+  // Convert use case ID to display name
+  const useCaseDisplayNames: Record<string, string> = {
+    'seo-content-gen': 'SEO Content Optimization',
+    'rag-optimization': 'RAG Pipeline Optimization',
+    'llm-training-speed': 'LLM Training Acceleration',
+    'red-teaming': 'AI Red-Teaming',
+    'synthetic-edge-cases': 'Synthetic Data Generation',
+    'investment-strategy': 'Investment Strategy AI',
+    'credit-risk': 'Credit Risk Modeling',
+    'compliance-monitoring': 'Compliance Monitoring',
+    'fraud-detection': 'Fraud Detection',
+    'deal-sourcing': 'Intelligent Deal Sourcing',
+    'clinical-workflow': 'Clinical Workflow Automation',
+    'automated-documentation': 'Automated Documentation',
+    'predictive-care': 'Predictive Care Analytics',
+    'medical-image-triage': 'Medical Image Triage',
+    'knowledge-retrieval': 'Medical Knowledge Retrieval',
+    'claims-automation': 'Claims Processing Automation',
+    'underwriting-automation': 'Underwriting Automation',
+    'predictive-analytics': 'Predictive Analytics',
+    'insurance-fraud': 'Insurance Fraud Detection',
+    'self-service-chatbot': 'Self-Service Chatbot',
+    'recruitment-automation': 'Recruitment Automation',
+    'onboarding-speed': 'Seller Onboarding Acceleration',
+    'sku-enrichment': 'SKU Enrichment & Catalog Optimization',
+    'inventory-optimization': 'Inventory Optimization',
+    'demand-forecasting': 'Demand Forecasting',
+    'price-optimization': 'Dynamic Price Optimization',
+    'customer-segmentation': 'Customer Segmentation',
+    'recommendation-engine': 'Recommendation Engine',
+    'supply-chain-optimization': 'Supply Chain Optimization',
+    'workflow-automation': 'Workflow Automation',
+    'document-processing': 'Document Processing',
+    'data-integration': 'Data Integration',
+    'reporting-analytics': 'Reporting & Analytics',
+    'compliance-management': 'Compliance Management',
+    'security-monitoring': 'Security Monitoring',
+    'performance-optimization': 'Performance Optimization',
+    'cost-optimization': 'Cost Optimization',
+    'scalability-planning': 'Scalability Planning',
+    'migration-strategy': 'Migration Strategy',
+    'integration-planning': 'Integration Planning',
+    'training-support': 'Training & Support',
+    'change-management': 'Change Management',
+    'governance-framework': 'Governance Framework',
+    'risk-assessment': 'Risk Assessment',
+    'vendor-management': 'Vendor Management',
+    'contract-management': 'Contract Management',
+    'budget-planning': 'Budget Planning',
+    'timeline-management': 'Timeline Management',
+    'stakeholder-communication': 'Stakeholder Communication',
+    'progress-tracking': 'Progress Tracking',
+    'quality-assurance': 'Quality Assurance',
+    'testing-validation': 'Testing & Validation',
+    'deployment-strategy': 'Deployment Strategy',
+    'rollout-planning': 'Rollout Planning',
+    'user-adoption': 'User Adoption',
+    'success-metrics': 'Success Metrics',
+    'continuous-improvement': 'Continuous Improvement'
+  };
+  const useCaseLabel = useCaseId ? useCaseDisplayNames[useCaseId] || useCaseId : '';
   // Get pricing calculator data from localStorage (Data Labeling)
   const pricingData = JSON.parse(localStorage.getItem('pricingCalculatorData') || '{"rows": [], "totals": {}}');
   const dataLabelingTotal = pricingData.totals?.grandTotal || 0;
@@ -46,7 +123,8 @@ export function QuoteStep() {
         });
       });
     });
-    return total;
+    // Return TCV (2x the cost) to match the PricingReviewStep calculation
+    return total * 2;
   };
   const enterpriseTotal = calculateEnterpriseTotal(volumeDataRaw);
   console.log('Enterprise Total Calculated:', enterpriseTotal);
@@ -255,7 +333,7 @@ export function QuoteStep() {
               {hasEnterpriseTransformation && <>
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500">
-                      Enterprise Transformation
+                      Enterprise Transformation (TCV)
                     </span>
                     <span className="font-medium">
                       $

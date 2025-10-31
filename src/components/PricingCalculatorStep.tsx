@@ -18,61 +18,128 @@ export function PricingCalculatorStep() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [defaultVolume, setDefaultVolume] = useState(0);
+
+  // Get deal types from URL parameters to determine if we should show FDE
+  const dealTypesParam = searchParams.get('dealTypes') || '';
+  const dealTypes = dealTypesParam.split(',').filter(Boolean);
+  const hasDataLabeling = dealTypes.includes('data-labeling');
+  const hasEnterpriseTransformation = dealTypes.includes('enterprise-transformation');
+  const isDataLabelingOnly = hasDataLabeling && !hasEnterpriseTransformation;
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     'expert-network': true,
-    'forward-deployed': true
+    'forward-deployed': !isDataLabelingOnly // Hide FDE section when only Data Labeling is selected
   });
-  const [rows, setRows] = useState<PricingRow[]>([{
-    id: '1',
-    resourceType: 'expert-network',
-    locale: 'en-US',
-    difficulty: 'Easy',
-    promptGenMin: 2,
-    reviewMin: 1,
-    rejectionRate: 5,
-    hourlyRate: 40,
-    taskVolume: 300
-  }, {
-    id: '2',
-    resourceType: 'expert-network',
-    locale: 'en-US',
-    difficulty: 'Hard',
-    promptGenMin: 2,
-    reviewMin: 1,
-    rejectionRate: 5,
-    hourlyRate: 45,
-    taskVolume: 300
-  }, {
-    id: '3',
-    resourceType: 'expert-network',
-    locale: 'zh-CN',
-    difficulty: 'Easy',
-    promptGenMin: 2,
-    reviewMin: 1,
-    rejectionRate: 5,
-    hourlyRate: 30,
-    taskVolume: 300
-  }, {
-    id: '4',
-    resourceType: 'forward-deployed',
-    locale: 'en-US',
-    difficulty: 'Easy',
-    promptGenMin: 3,
-    reviewMin: 2,
-    rejectionRate: 5,
-    hourlyRate: 50,
-    taskVolume: 300
-  }, {
-    id: '5',
-    resourceType: 'forward-deployed',
-    locale: 'en-US',
-    difficulty: 'Hard',
-    promptGenMin: 3,
-    reviewMin: 2,
-    rejectionRate: 5,
-    hourlyRate: 55,
-    taskVolume: 300
-  }]);
+  // Initialize rows based on deal type selection
+  const getInitialRows = () => {
+    const expertNetworkRows = [{
+      id: '1',
+      resourceType: 'expert-network',
+      locale: 'en-US',
+      difficulty: 'Easy',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 40,
+      taskVolume: 300
+    }, {
+      id: '2',
+      resourceType: 'expert-network',
+      locale: 'en-US',
+      difficulty: 'Hard',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 45,
+      taskVolume: 300
+    }, {
+      id: '3',
+      resourceType: 'expert-network',
+      locale: 'zh-CN',
+      difficulty: 'Easy',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 30,
+      taskVolume: 300
+    }, {
+      id: '4',
+      resourceType: 'expert-network',
+      locale: 'zh-CN',
+      difficulty: 'Hard',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 35,
+      taskVolume: 300
+    }, {
+      id: '5',
+      resourceType: 'expert-network',
+      locale: 'es-US',
+      difficulty: 'Easy',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 32,
+      taskVolume: 300
+    }, {
+      id: '6',
+      resourceType: 'expert-network',
+      locale: 'es-US',
+      difficulty: 'Hard',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 37,
+      taskVolume: 300
+    }, {
+      id: '7',
+      resourceType: 'expert-network',
+      locale: 'es-ES',
+      difficulty: 'Easy',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 32,
+      taskVolume: 300
+    }, {
+      id: '8',
+      resourceType: 'expert-network',
+      locale: 'es-ES',
+      difficulty: 'Hard',
+      promptGenMin: 2,
+      reviewMin: 1,
+      rejectionRate: 5,
+      hourlyRate: 37,
+      taskVolume: 300
+    }];
+
+    // Only add Forward Deployed Engineers if not Data Labeling only
+    if (!isDataLabelingOnly) {
+      return [...expertNetworkRows, {
+        id: '9',
+        resourceType: 'forward-deployed',
+        locale: 'en-US',
+        difficulty: 'Easy',
+        promptGenMin: 3,
+        reviewMin: 2,
+        rejectionRate: 5,
+        hourlyRate: 50,
+        taskVolume: 300
+      }, {
+        id: '10',
+        resourceType: 'forward-deployed',
+        locale: 'en-US',
+        difficulty: 'Hard',
+        promptGenMin: 3,
+        reviewMin: 2,
+        rejectionRate: 5,
+        hourlyRate: 55,
+        taskVolume: 300
+      }];
+    }
+    return expertNetworkRows;
+  };
+  const [rows, setRows] = useState<PricingRow[]>(getInitialRows());
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -316,132 +383,8 @@ export function PricingCalculatorStep() {
               </tbody>
             </table>}
         </div>
-        {/* Forward Deployed Engineers Section */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
-          <div className="bg-gray-50 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-100" onClick={() => toggleSection('forward-deployed')}>
-            <div className="flex items-center gap-2">
-              {expandedSections['forward-deployed'] ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-              <h3 className="font-medium">Forward Deployed Engineers</h3>
-              <span className="text-sm text-gray-500">
-                ({getRowsByResource('forward-deployed').length} configurations)
-              </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">
-                ${calculateResourceTotal('forward-deployed').toFixed(2)}
-              </span>
-              <button onClick={e => {
-              e.stopPropagation();
-              addRow('forward-deployed');
-            }} className="px-3 py-1 bg-black text-white rounded-md text-sm font-medium flex items-center gap-1 hover:bg-gray-800">
-                <Plus size={14} />
-                Add Row
-              </button>
-            </div>
-          </div>
-          {expandedSections['forward-deployed'] && <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Locale
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Difficulty
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Prompt Gen (Min)
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Review (Min)
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Rejection Rate (%)
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Rate ($/HR)
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Task Volume
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Cost/Task
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    <div className="flex items-center gap-1">
-                      Total
-                      <Info size={14} className="text-gray-400" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {getRowsByResource('forward-deployed').map(row => <tr key={row.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <select value={row.locale} onChange={e => updateRow(row.id, 'locale', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
-                        {localeOptions.map(locale => <option key={locale} value={locale}>
-                            {locale}
-                          </option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select value={row.difficulty} onChange={e => updateRow(row.id, 'difficulty', e.target.value)} className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm">
-                        {difficultyOptions.map(diff => <option key={diff} value={diff}>
-                            {diff}
-                          </option>)}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input type="number" value={row.promptGenMin} onChange={e => updateRow(row.id, 'promptGenMin', parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input type="number" value={row.reviewMin} onChange={e => updateRow(row.id, 'reviewMin', parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input type="number" value={row.rejectionRate} onChange={e => updateRow(row.id, 'rejectionRate', parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input type="number" value={row.hourlyRate} onChange={e => updateRow(row.id, 'hourlyRate', parseInt(e.target.value) || 0)} className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input type="number" value={row.taskVolume} onChange={e => updateRow(row.id, 'taskVolume', parseInt(e.target.value) || 0)} className="w-24 px-2 py-1 border border-gray-300 rounded-md text-sm" />
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      ${calculateCostPerTask(row).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium">
-                      ${calculateTotal(row).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => deleteRow(row.id)} className="text-gray-400 hover:text-red-600">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>)}
-              </tbody>
-            </table>}
-        </div>
+        {/* Forward Deployed Engineers Section - Only show if not Data Labeling only */}
+        {!isDataLabelingOnly}
         {/* Summary */}
         <div className="border border-gray-200 rounded-lg p-6">
           <h2 className="text-lg font-semibold mb-4">Summary</h2>
