@@ -109,6 +109,39 @@ export function PricingReviewStep() {
     }, 0);
   };
   const milestonesWithData = milestones.filter(m => costData[m.id]);
+  // Add helper function to calculate section revenue (matching VolumeAndPricingStep logic)
+  const calculateSectionRevenue = (milestoneId: string, sectionId: string) => {
+    const section = costData[milestoneId]?.find(s => s.id === sectionId);
+    if (!section) return 0;
+    if (section.type === 'platform-fee') {
+      return (section.items as PlatformFeeItem[]).reduce((sum, item) => {
+        const suggestedRate = item.suggestedPrice ?? item.ratePerUnit;
+        const quoteRate = item.quotePrice ?? suggestedRate;
+        const estRevenue = quoteRate * item.quantity * (item.durationMonths || 1);
+        return sum + estRevenue;
+      }, 0);
+    } else if (sectionId === 'forward-deployed') {
+      // For FDE, calculate revenue based on quote rate * hours
+      const fdeItems = section.items as CostItem[];
+      if (fdeItems.length === 0) return 0;
+      const avgHourlyRate = fdeItems.reduce((sum, item) => sum + (item.hourlyRate || 50), 0) / fdeItems.length;
+      const hourlyRate = fdeItems[0]?.hourlyRate || avgHourlyRate || 50;
+      const totalHours = fdeItems.length > 0 ? fdeItems[0]?.taskVolume || 10 : 10;
+      const suggestedRate = hourlyRate * 1.4;
+      const quoteRate = fdeItems[0]?.quotePrice ?? suggestedRate;
+      const estRevenue = quoteRate * totalHours;
+      return estRevenue;
+    } else {
+      // For other resource sections, calculate based on quote price * task volume
+      return (section.items as CostItem[]).reduce((sum, item) => {
+        const costPerTask = calculateCostPerTask(item);
+        const suggestedRate = costPerTask * 1.4;
+        const quoteRate = item.quotePrice ?? suggestedRate;
+        const estRevenue = quoteRate * item.taskVolume;
+        return sum + estRevenue;
+      }, 0);
+    }
+  };
   // Function to get approval level based on discount percentage
   const getApprovalLevel = (discountPercent: number) => {
     if (discountPercent >= 30) {
@@ -148,6 +181,16 @@ export function PricingReviewStep() {
   const calculateGrossMargin = (cost: number, quotePrice: number) => {
     if (quotePrice === 0) return 0;
     return (quotePrice - cost) / quotePrice * 100;
+  };
+  // Function to calculate grand revenue (sum of all section revenues)
+  const calculateGrandRevenue = () => {
+    return Object.keys(costData).reduce((sum, milestoneId) => {
+      const sections = costData[milestoneId] || [];
+      const milestoneRevenue = sections.reduce((sectionSum, section) => {
+        return sectionSum + calculateSectionRevenue(milestoneId, section.id);
+      }, 0);
+      return sum + milestoneRevenue;
+    }, 0);
   };
   return <div className="min-h-screen bg-white">
       {/* Breadcrumb */}
@@ -254,25 +297,26 @@ export function PricingReviewStep() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {milestonesWithData.map(milestone => {
-                  const cost = calculateMilestoneTotal(milestone.id);
-                  const suggestedPrice = cost * 2;
-                  const discount = discounts[milestone.id] || 0;
-                  const quotePrice = calculateQuotePrice(suggestedPrice, discount);
-                  const isExpanded = expandedMilestones[milestone.id];
-                  // Get sections for this milestone
                   const sections = costData[milestone.id] || [];
+                  // Calculate milestone total as sum of all section revenues
+                  const milestoneRevenue = sections.reduce((sum, section) => {
+                    return sum + calculateSectionRevenue(milestone.id, section.id);
+                  }, 0);
+                  const isExpanded = expandedMilestones[milestone.id];
                   return <Fragment key={milestone.id}>
                         {/* Main Milestone Row */}
                         <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleMilestone(milestone.id)}>
                           <td className="px-3 py-2 text-sm">
                             <div className="flex items-center gap-2">
                               {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                              <span>{milestone.name}</span>
+                              <span className="font-medium">
+                                {milestone.name}
+                              </span>
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-sm font-medium text-right">
+                          <td className="px-3 py-2 text-sm font-semibold text-right">
                             $
-                            {quotePrice.toLocaleString('en-US', {
+                            {milestoneRevenue.toLocaleString('en-US', {
                           minimumFractionDigits: 2
                         })}
                           </td>
@@ -283,12 +327,15 @@ export function PricingReviewStep() {
                       if (section.id === 'platform-fee' && sections.some(s => s.id === 'forward-deployed')) {
                         return null;
                       }
-                      const sectionCost = calculateSectionTotal(milestone.id, section.id);
-                      // For forward-deployed, include platform-fee in calculations
-                      const platformFeeSection = sections.find(s => s.id === 'platform-fee');
-                      const totalSectionCost = section.id === 'forward-deployed' && platformFeeSection ? sectionCost + calculateSectionTotal(milestone.id, 'platform-fee') : sectionCost;
-                      const sectionSuggestedPrice = totalSectionCost * 2;
-                      const sectionQuotePrice = calculateQuotePrice(sectionSuggestedPrice, discount);
+                      // Calculate section revenue
+                      let sectionRevenue = calculateSectionRevenue(milestone.id, section.id);
+                      // For forward-deployed, include platform-fee in the display
+                      if (section.id === 'forward-deployed') {
+                        const platformFeeSection = sections.find(s => s.id === 'platform-fee');
+                        if (platformFeeSection) {
+                          sectionRevenue += calculateSectionRevenue(milestone.id, 'platform-fee');
+                        }
+                      }
                       // Determine section display name
                       let sectionName = section.name;
                       if (section.id === 'expert-network') {
@@ -304,9 +351,9 @@ export function PricingReviewStep() {
                                     ↳ {sectionName}
                                   </span>
                                 </td>
-                                <td className="px-3 py-2 text-xs text-right">
+                                <td className="px-3 py-2 text-xs text-right text-gray-600">
                                   $
-                                  {sectionQuotePrice.toLocaleString('en-US', {
+                                  {sectionRevenue.toLocaleString('en-US', {
                             minimumFractionDigits: 2
                           })}
                                 </td>
@@ -319,11 +366,11 @@ export function PricingReviewStep() {
                     <td className="px-3 py-2 text-sm text-right">
                       $
                       {milestonesWithData.reduce((sum, milestone) => {
-                      const cost = calculateMilestoneTotal(milestone.id);
-                      const suggestedPrice = cost * 2;
-                      const discount = discounts[milestone.id] || 0;
-                      const quotePrice = calculateQuotePrice(suggestedPrice, discount);
-                      return sum + quotePrice;
+                      const sections = costData[milestone.id] || [];
+                      const milestoneRevenue = sections.reduce((sectionSum, section) => {
+                        return sectionSum + calculateSectionRevenue(milestone.id, section.id);
+                      }, 0);
+                      return sum + milestoneRevenue;
                     }, 0).toLocaleString('en-US', {
                       minimumFractionDigits: 2
                     })}
@@ -342,7 +389,7 @@ export function PricingReviewStep() {
               <div className="text-xs text-gray-600 mb-1">TCV</div>
               <div className="text-2xl font-bold">
                 $
-                {(calculateGrandTotal() * 2).toLocaleString('en-US', {
+                {calculateGrandRevenue().toLocaleString('en-US', {
                 minimumFractionDigits: 2
               })}
               </div>
@@ -353,8 +400,7 @@ export function PricingReviewStep() {
               Back
             </Link>
             <button onClick={() => {
-            const grandTotal = calculateGrandTotal();
-            const tcv = grandTotal * 2; // TCV is the suggested price (2x cost) - $220,110.00
+            const tcv = calculateGrandRevenue(); // Use revenue calculation for TCV
             const params = new URLSearchParams();
             params.set('tcv', tcv.toString());
             params.set('term', '12');

@@ -13,22 +13,20 @@ export function QuoteStep() {
   // Get industry/use case label from URL parameters
   const industryId = queryParams.get('type') || queryParams.get('industry') || 'ai-training';
   const useCaseId = queryParams.get('useCase') || '';
-
   // Convert industry ID to display name
   const industryDisplayNames: Record<string, string> = {
     'ai-training': 'AI & Machine Learning',
-    'finance': 'Financial Services',
-    'healthcare': 'Healthcare',
-    'insurance': 'Insurance',
-    'retail': 'Retail & E-commerce',
-    'technology': 'Technology',
+    finance: 'Financial Services',
+    healthcare: 'Healthcare',
+    insurance: 'Insurance',
+    retail: 'Retail & E-commerce',
+    technology: 'Technology',
     'public-sector': 'Public Sector',
-    'sports': 'Sports & Entertainment',
+    sports: 'Sports & Entertainment',
     'model-provider': 'AI Model Provider',
-    'custom': 'Custom Industry'
+    custom: 'Custom Industry'
   };
   const industryLabel = industryDisplayNames[industryId] || industryId;
-
   // Convert use case ID to display name
   const useCaseDisplayNames: Record<string, string> = {
     'seo-content-gen': 'SEO Content Optimization',
@@ -97,34 +95,57 @@ export function QuoteStep() {
   const avgCostPerTask = pricingData.totals?.avgCost || 0;
   // Get enterprise transformation data from localStorage and calculate total
   const volumeDataRaw = JSON.parse(localStorage.getItem('volumeAndPricingData') || '{}');
-  // Calculate enterprise total from the costData structure
+  // Helper function to calculate cost per task (matching PricingReviewStep)
+  const calculateCostPerTask = (item: any) => {
+    const totalMinutes = (item.promptGenMin || 0) + (item.reviewMin || 0);
+    const hourlyFraction = totalMinutes / 60;
+    const baseCost = (item.hourlyRate || 0) * hourlyFraction;
+    const costWithRejection = baseCost * (1 + (item.rejectionRate || 0) / 100);
+    return costWithRejection;
+  };
+  // Helper function to calculate section revenue (matching PricingReviewStep logic)
+  const calculateSectionRevenue = (milestoneId: string, sectionId: string, costData: any) => {
+    const section = costData[milestoneId]?.find((s: any) => s.id === sectionId);
+    if (!section) return 0;
+    if (section.type === 'platform-fee') {
+      return (section.items as any[]).reduce((sum, item) => {
+        const suggestedRate = item.suggestedPrice ?? item.ratePerUnit;
+        const quoteRate = item.quotePrice ?? suggestedRate;
+        const estRevenue = quoteRate * item.quantity * (item.durationMonths || 1);
+        return sum + estRevenue;
+      }, 0);
+    } else if (sectionId === 'forward-deployed') {
+      // For FDE, calculate revenue based on quote rate * hours
+      const fdeItems = section.items as any[];
+      if (fdeItems.length === 0) return 0;
+      const avgHourlyRate = fdeItems.reduce((sum: number, item: any) => sum + (item.hourlyRate || 50), 0) / fdeItems.length;
+      const hourlyRate = fdeItems[0]?.hourlyRate || avgHourlyRate || 50;
+      const totalHours = fdeItems.length > 0 ? fdeItems[0]?.taskVolume || 10 : 10;
+      const suggestedRate = hourlyRate * 1.4;
+      const quoteRate = fdeItems[0]?.quotePrice ?? suggestedRate;
+      const estRevenue = quoteRate * totalHours;
+      return estRevenue;
+    } else {
+      // For other resource sections, calculate based on quote price * task volume
+      return (section.items as any[]).reduce((sum, item) => {
+        const costPerTask = calculateCostPerTask(item);
+        const suggestedRate = costPerTask * 1.4;
+        const quoteRate = item.quotePrice ?? suggestedRate;
+        const estRevenue = quoteRate * item.taskVolume;
+        return sum + estRevenue;
+      }, 0);
+    }
+  };
+  // Calculate enterprise total using revenue calculation (matching PricingReviewStep)
   const calculateEnterpriseTotal = (costData: any) => {
     if (!costData || typeof costData !== 'object') return 0;
-    let total = 0;
-    // Iterate through all milestones
-    Object.keys(costData).forEach(milestoneId => {
-      const sections = costData[milestoneId];
-      if (!Array.isArray(sections)) return;
-      sections.forEach((section: any) => {
-        if (!Array.isArray(section.items)) return;
-        section.items.forEach((item: any) => {
-          if (section.type === 'platform-fee') {
-            // Platform fee calculation
-            total += (item.quantity || 0) * (item.ratePerUnit || 0) * (item.durationMonths || 0);
-          } else {
-            // Resource calculation
-            const totalMinutes = (item.promptGenMin || 0) + (item.reviewMin || 0);
-            const hourlyFraction = totalMinutes / 60;
-            const baseCost = (item.hourlyRate || 0) * hourlyFraction;
-            const costWithRejection = baseCost * (1 + (item.rejectionRate || 0) / 100);
-            const itemTotal = costWithRejection * (item.taskVolume || 0);
-            total += itemTotal;
-          }
-        });
-      });
-    });
-    // Return TCV (2x the cost) to match the PricingReviewStep calculation
-    return total * 2;
+    return Object.keys(costData).reduce((sum, milestoneId) => {
+      const sections = costData[milestoneId] || [];
+      const milestoneRevenue = sections.reduce((sectionSum: number, section: any) => {
+        return sectionSum + calculateSectionRevenue(milestoneId, section.id, costData);
+      }, 0);
+      return sum + milestoneRevenue;
+    }, 0);
   };
   const enterpriseTotal = calculateEnterpriseTotal(volumeDataRaw);
   console.log('Enterprise Total Calculated:', enterpriseTotal);
